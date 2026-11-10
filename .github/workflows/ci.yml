@@ -11,7 +11,7 @@ on:
 
 jobs:
   docker-build:
-    name: Build Docker Image
+    name: Build and Test Docker Image
     runs-on: ubuntu-latest
 
     steps:
@@ -20,3 +20,25 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t production-web-platform:test .
+
+      - name: Run application container
+        run: docker run -d --name production-test -p 8080:80 production-web-platform:test
+
+      - name: Test application response
+        run: |
+          for attempt in {1..10}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8080/; then
+              echo "Application test passed!"
+              exit 0
+            fi
+            echo "Waiting for application..."
+            sleep 2
+          done
+
+          echo "Application test failed!"
+          docker logs production-test
+          exit 1
+
+      - name: Clean up test container
+        if: always()
+        run: docker rm -f production-test || true
