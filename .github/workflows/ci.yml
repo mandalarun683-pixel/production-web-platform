@@ -1,3 +1,4 @@
+
 name: Production Web Platform CI
 
 on:
@@ -11,7 +12,7 @@ on:
 
 jobs:
   docker-build:
-    name: Build and Test Docker Image
+    name: Build, Test and Publish Docker Image
     runs-on: ubuntu-latest
 
     steps:
@@ -42,3 +43,25 @@ jobs:
       - name: Clean up test container
         if: always()
         run: docker rm -f production-test || true
+
+      - name: Set up Docker Buildx
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/production-web-platform:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/production-web-platform:${{ github.sha }}
+
